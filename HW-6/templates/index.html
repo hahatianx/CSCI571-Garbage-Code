@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Search</title>
+    <link href="../static/template.css" rel="stylesheet" type="text/css">
+</head>
+
+<script src="../static/highstock.js"></script>
+<script src="../static/data.js"></script>
+<script src="../static/exporting.js"></script>
+<script src="../static/export-data.js"></script>
+
+<script type="text/javascript">
+
+    let global_stock_name;
+    let global_search_status;
+
+    // json cache
+    let summary_cache_stock_name;
+    let summary_cache;
+    let iex_cache_stock_name;
+    let iex_cache;
+    let chart_cache_stock_name;
+    let chart_cache;
+    let news_cache_stock_name;
+    let news_cache;
+
+    // which page is focused;
+    let cur_page = 0;
+
+    function do_post_request(stock_name, url, func) {
+        url += '/ticker=' + stock_name.toUpperCase();
+        let xml_http = new XMLHttpRequest();
+        xml_http.open('GET', url, true)
+        xml_http.setRequestHeader('Content-type', 'application/json; charset=utf-8' )
+        xml_http.onreadystatechange = function() {
+            if (xml_http.readyState == 4) {
+                if (xml_http.status / 100 == 2) {
+                    func(stock_name, xml_http.responseText)
+                }
+            }
+        }
+        return xml_http.send()
+    }
+    function do_work(url, func) {
+        let search_box = document.getElementById('search_box');
+        let stock_name = search_box.value;
+        switch (func) {
+            case fill_summary_info:
+                if (summary_cache_stock_name == global_stock_name)
+                    func(global_stock_name, summary_cache);
+                else
+                    do_post_request(stock_name, url, func);
+                break;
+            case fill_iex_info:
+                if (iex_cache_stock_name == global_stock_name)
+                    func(global_stock_name, iex_cache);
+                else
+                    do_post_request(stock_name, url, func);
+                break;
+            case print_graph:
+                if (chart_cache_stock_name == global_stock_name)
+                    func(global_stock_name, chart_cache);
+                else
+                    do_post_request(stock_name, url, func);
+                break;
+            case get_news_card:
+                if (news_cache_stock_name == global_stock_name)
+                    func(global_stock_name, news_cache);
+                else
+                    do_post_request(stock_name, url, func);
+                break;
+            case retrieve_basic_info:
+                do_post_request(stock_name, url, func);
+        }
+    }
+
+    function format_datetime(input_points) {
+        let len = input_points.length;
+        let one_day = 24 * 3600 * 1000;
+        for (let i = 0; i < len; i ++) {
+            input_points[i][0] = new Date(input_points[i][0]).getTime()
+            input_points[i][0] -= input_points[i][0] % one_day;
+        }
+        return input_points
+    }
+
+    function print_graph(stock_name, response_data) {
+        chart_cache_stock_name = stock_name;
+        chart_cache = response_data;
+        let input_json = JSON.parse(response_data)
+        let today = new Date();
+        let current_date = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + today.getDate();
+        let title_name = 'Stock Price ' + stock_name.toUpperCase() + ' ' + current_date;
+        Highcharts.stockChart('container', {
+            title: { text: title_name },
+            subtitle: {
+                text: "<a href='https://api.tiingo.com/'>Source: Tiingo</a>",
+                useHTML: true,
+            },
+            xAxis: {
+                maxPadding: 0,
+                gapGridLineWidth: 0,
+                type: 'datetime',
+            },
+            yAxis: [
+                {
+                    opposite: false,
+                    title: {
+                        text: 'Stock Price',
+                        align: 'middle'
+                    },
+                    tickPosition: 'outside',
+                },
+                {
+                    title: {
+                        text: 'Volume',
+                        align: 'middle'
+                    },
+                    tickPosition: 'outside',
+                }
+            ],
+            tooltip: {
+                dateTimeLabelFormats: {
+                    hour: '%A, %b %e, %Y',
+                    millisecond: '%A, %b %e, %Y',
+                    second: '%A, %b %e, %Y',
+                    year: '%A, %b %e, %Y',
+                    month: '%A, %b %e, %Y',
+                    minute: '%A, %b %e, %Y',
+                    week: '%A, %b %e, %Y',
+                },
+            },
+            rangeSelector: {
+                buttons: [
+                    {type: 'day', count: 7, text: '7d'},
+                    {type: 'day', count: 15, text: '15d'},
+                    {type: 'month', count: 1, text: '1m'},
+                    {type: 'month', count: 3, text: '3m'},
+                    {type: 'month', count: 6, text: '6m'}
+                ],
+                selected: 4,
+                inputEnabled: false
+            },
+            series: [
+                {
+                    name: stock_name.toUpperCase(),
+                    type: 'area',
+                    data: format_datetime(input_json['close_list']),
+                    fillColor: {
+                        linearGradient: {x1: 0, y1: 0, x2: 0, y2: 1},
+                        stops: [
+                            [0, Highcharts.getOptions().colors[0]],
+                            [1, Highcharts.color(Highcharts.getOptions().colors[0]).setOpacity(0).get('rgba')]
+                        ]
+                    },
+                    yAxis: 0,
+                    tooltip: {
+                        pointFormatter: function() {
+                            return this.series.name + ': ' + this.y.toFixed(2);
+                        }
+                    }
+                }, {
+                    pointWidth: 5,
+                    name: stock_name.toUpperCase() + ' Volume',
+                    type: 'column',
+                    data: format_datetime(input_json['volume_list']),
+                    yAxis: 1,
+                }
+            ],
+            plotOptions: {
+                series: {
+                    pointPlacement: 'on',
+                },
+            },
+        });
+    }
+
+    function fill_summary_info(stock_name, response_data) {
+        summary_cache_stock_name = stock_name;
+        summary_cache = response_data;
+        let input_json = JSON.parse(response_data)['data'];
+        let row_name = ['company_name', 'stock_ticker_symbol', 'stock_exchange_code',
+                        'company_start_date', 'description'];
+        let row_left = ['Company Name', 'Stock Ticker Symbol', 'Stock Exchange Code',
+                        'Company Start Date', 'Description'];
+        let fill_table = document.createElement('table');
+        fill_table.className = 'result_table';
+        for (let i = 0; i < row_name.length; i ++) {
+            let tmp_row = document.createElement('tr');
+            let col_1 = document.createElement('th');
+            col_1.className = 'summary_left_column';
+            col_1.innerHTML = row_left[i];
+            let col_2 = document.createElement('th');
+            col_2.className = 'summary_right_column';
+            col_2.innerText = input_json[row_name[i]];
+            tmp_row.appendChild(col_1);
+            tmp_row.appendChild(col_2);
+            fill_table.appendChild(tmp_row);
+        }
+        document.getElementById('container').innerHTML = fill_table.outerHTML;
+    }
+
+    function fill_iex_info(stock_name, response_data) {
+        iex_cache_stock_name = stock_name;
+        iex_cache = response_data;
+        let input_json = JSON.parse(response_data)['data'];
+        let row_name = ['stock_ticker_symbol', 'trading_day', 'previous_closing_price',
+                        'opening_price', 'high_price', 'low_price', 'last_price', 'change',
+                        'change_percentage', 'number_of_shares_traded'];
+        let row_left = ['Stock Ticker Symbol', 'Trading Day', 'Previous Closing Price',
+                        'Opening Price', 'High Price', 'Low Price', 'Last Price', 'Change',
+                        'Change Percentage', 'Number of Shares Traded'];
+        let fill_table = document.createElement('table');
+        fill_table.className = 'result_table';
+        for (let i = 0; i < row_name.length; i ++) {
+            let tmp_row = document.createElement('tr');
+            let col_1 = document.createElement('th');
+            col_1.className = 'IEX_left_column';
+            col_1.innerHTML = row_left[i];
+            let col_2 = document.createElement('th');
+            col_2.className = 'IEX_right_column';
+            let input_info = input_json[row_name[i]];
+            if (row_name[i].startsWith('change')) {
+                if (input_json['change'] > 0) {
+                    input_info += '&nbsp <img class="arrow_pic" src="https://csci571.com/hw/hw6/images/GreenArrowUp.png">'
+                } else {
+                    input_info += '&nbsp <img class="arrow_pic" src="https://csci571.com/hw/hw6/images/RedArrowDown.png">'
+                }
+            }
+            col_2.innerHTML = input_info;
+            tmp_row.appendChild(col_1);
+            tmp_row.appendChild(col_2);
+            fill_table.appendChild(tmp_row);
+        }
+        document.getElementById('container').innerHTML = fill_table.outerHTML;
+    }
+
+    function news_date(date) {
+        let r_date = new Date(date);
+        return String(r_date.getMonth()+1).padStart(2, '0') + '/' +
+            String(r_date.getDate()).padStart(2, '0') + '/' +
+            r_date.getFullYear();
+    }
+
+    // news card, return a DOM
+    function fill_news_card(news_data) {
+        let card = document.createElement('div');
+        card.className = 'news_card';
+        let news_pic = document.createElement('div');
+        news_pic.className = 'news_card_pic';
+        let news_main = document.createElement('div');
+        news_main.className = 'news_card_main';
+        let pic_dom = document.createElement('img');
+        pic_dom.className = 'news_card_pic';
+        pic_dom.src = news_data['image'];
+        news_pic.appendChild(pic_dom);
+        let title = document.createElement('div');
+        title.className = 'news_card_title';
+        title.innerHTML = '<b>' + news_data['title'] + '</b>';
+        let published =  document.createElement('div');
+        published.className = 'news_card_date';
+        published.innerText = 'Published Date: ' + news_date(news_data['date']);
+        let link = document.createElement('div');
+        link.style.fontSize = '11pt';
+        link.innerHTML = '<a href=' + news_data['link'] + '>See Original Post</a>';
+        news_main.appendChild(title);
+        news_main.appendChild(published);
+        news_main.appendChild(link);
+        card.appendChild(news_pic);
+        card.appendChild(news_main);
+        return card;
+    }
+
+    function get_news_card(stock_name, response_data) {
+        news_cache_stock_name = stock_name;
+        news_cache = response_data;
+        let input_json = JSON.parse(response_data)['data'];
+        let news_card = document.createElement('div');
+        for (let i = 0; i < input_json.length; i ++) {
+            news_card.appendChild(fill_news_card(input_json[i]));
+            let margin = document.createElement('div');
+            margin.style.height = '20px';
+            news_card.appendChild(margin)
+        }
+        document.getElementById('container').innerHTML = news_card.outerHTML;
+    }
+
+    function retrieve_basic_info(stock_name, response_data) {
+        let input_json = JSON.parse(response_data);
+        global_search_status = input_json['status'];
+        if (global_search_status == true) {
+            global_stock_name = stock_name;
+            fill_summary_info(stock_name, response_data);
+        }
+        fill_toolbox();
+        if (global_search_status == true)
+            page_activate(1);
+        reveal_result_block();
+    }
+
+    function reveal_result_block() {
+        document.getElementById('result_block_id').style.display = 'block';
+    }
+
+    function hide_result_block() {
+        document.getElementById('result_block_id').style.display = 'none';
+    }
+
+    function clear_result_block() {
+        document.getElementById('container').innerHTML = "";
+    }
+
+    function fill_toolbox() {
+        let tool_box_obj = document.getElementById('tool_box_id');
+        if (global_search_status == true) {
+            tool_box_obj.style.background = 'rgb(235, 235, 235)';
+            let buttons =
+                '<button class="tool_box_button" id="outlook" onclick="do_summary()">Company Outlook</button>' +
+                '<button class="tool_box_button" id="summary" onclick="do_iex()">Stock Summary</button>' +
+                '<button class="tool_box_button" id="charts" onclick="do_draw()">Charts</button>' +
+                '<button class="tool_box_button" id="news" onclick="do_news()">Latest News</button>'
+            tool_box_obj.innerHTML = buttons;
+        } else {
+            tool_box_obj.style.background = 'none';
+            let error_msg = '<p style="text-align: center; background: none; font-weight: bold;' +
+                'font-family: sans-serif; font-size: 15pt"> ' +
+                'Error: No record has been found, please enter a valid symbol. </p>'
+            tool_box_obj.innerHTML = error_msg;
+        }
+    }
+
+    function clear_cache() {
+        summary_cache_stock_name = 'NOVALIDCACHE';
+        iex_cache_stock_name = 'NOVALIDCACHE';
+        chart_cache_stock_name = 'NOVALIDCACHE';
+        news_cache_stock_name = 'NOVALIDCACHE';
+        summary_cache = '';
+        iex_cache = '';
+        chart_cache = '';
+        news_cache = '';
+    }
+
+    function page_activate(page_number) {
+        let page_list = ['empty', 'outlook', 'summary', 'charts', 'news'];
+        if (cur_page != 0)
+            document.getElementById(page_list[cur_page]).style.background = '#ebebeb';
+        cur_page = page_number;
+        if (cur_page != 0)
+            document.getElementById(page_list[cur_page]).style.background = '#d2d2d2';
+    }
+
+    function do_draw() {
+        page_activate(3);
+        do_work('/getHistory', print_graph);
+    }
+
+    function do_summary() {
+        page_activate(1);
+        do_work('/getDaily', fill_summary_info);
+    }
+
+    function do_search() {
+        page_activate(0);
+        clear_cache();
+        hide_result_block();
+        clear_result_block();
+        do_work('/getDaily', retrieve_basic_info);
+    }
+
+    function do_iex() {
+        page_activate(2);
+        do_work('/getIex', fill_iex_info);
+    }
+
+    function do_news() {
+        page_activate(4);
+        do_work('/getNews', get_news_card);
+    }
+
+    function clear_input() {
+        clear_cache();
+        hide_result_block();
+        clear_result_block();
+    }
+
+</script>
+
+
+<body>
+<div class="main_page">
+    <div class="search_block">
+        <div class="search_block_top_down_margin" style="height: 60px"></div>
+        <div class="search_block_inside" style="font-size: 25pt; font-family: sans-serif">
+            <b>Stock Search</b><br>
+        </div>
+        <div class="search_block_top_down_margin" style="height: 15px"></div>
+        <form id="fm_search" target="fake_target">
+            <div class="search_block_inside">
+                <label for="search_box" style="font-family: sans-serif">Enter Stock Ticker Symbol<span style="color:red">*</span> &nbsp </label>
+                <input type="text" id="search_box" required>
+            </div>
+            <div class="search_block_top_down_margin" style="height: 25px"></div>
+            <div class="search_block_inside">
+                <div class="search_button_wrapper">
+                    <input type="submit" class="main_button" value="Search">
+<!--                    <button type="button" onclick="do_search()" class="main_button">Search</button>-->
+                    <div class="search_button_margin"></div>
+                    <input type="reset" class="main_button" value="Clear">
+<!--                    <button onclick="clear_input()" id="clear" class="main_button"> Clear </button>-->
+                </div>
+            </div>
+        </form>
+        <iframe name="fake_target" style="display: none"></iframe>
+        <div class="search_block_top_down_margin" style="height: 40px"></div>
+    </div>
+    <div class="search_block_top_down_margin" style="height: 30px"></div>
+    <div class="cut_off_line"></div>
+    <div class="search_block_top_down_margin" style="height: 10px"></div>
+    <div class="result_block" id="result_block_id">
+        <div class="tool_box" id="tool_box_id"></div>
+        <div class="search_block_top_down_margin" style="height: 30px"></div>
+        <div class="result_info" id="container"></div>
+    </div>
+
+</div>
+</body>
+
+<script type="text/javascript">
+
+    document.getElementById('fm_search').onsubmit = function() {
+        do_search();
+    }
+
+    document.getElementById('fm_search').onreset = function () {
+        clear_input();
+    }
+
+</script>
+
+</html>

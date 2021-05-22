@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<header><meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no'></header>
+<body>
+<div id="container" style="height: 400px; min-width: 150px"></div>
+</body>
+<script src="https://code.highcharts.com/stock/highstock.js"></script>
+<script src="https://code.highcharts.com/stock/modules/data.js"></script>
+<script src="https://code.highcharts.com/stock/modules/drag-panes.js"></script>
+<script src="https://code.highcharts.com/stock/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/stock/indicators/indicators.js"></script>
+<script src="https://code.highcharts.com/stock/indicators/volume-by-price.js"></script>
+<script>
+    var thisUrl = window.location.pathname.split('/');
+    function getGraph(data) {
+        var ohlc = [],
+            volume = [],
+            dataLength = data.length,
+            // set the allowed units for data grouping
+            groupingUnits = [[ 'week', [1] ], [ 'month', [1, 2, 3, 4, 6] ]],
+
+            i = 0;
+
+        for (i; i < dataLength; i += 1) {
+            ohlc.push([
+                data[i].date, // the date
+                data[i].open, // open
+                data[i].high, // high
+                data[i].low, // low
+                data[i].close // close
+            ]);
+
+            volume.push([
+                data[i].date, // the date
+                data[i].volume // the volume
+            ]);
+        }
+
+
+        // create the chart
+        Highcharts.stockChart('container', {
+
+            rangeSelector: {
+                selected: 2
+            },
+
+
+
+            yAxis: [{
+                startOnTick: false,
+                endOnTick: false,
+                labels: {
+                    align: 'right',
+                    x: -3
+                },
+                title: {
+                    text: 'OHLC'
+                },
+                height: '60%',
+                lineWidth: 2,
+                resize: {
+                    enabled: true
+                }
+            }, {
+                labels: {
+                    align: 'right',
+                    x: -3
+                },
+                title: {
+                    text: 'Volume'
+                },
+                top: '65%',
+                height: '35%',
+                offset: 0,
+                lineWidth: 2
+            }],
+
+            tooltip: {
+                split: true
+            },
+
+            plotOptions: {
+                series: {
+                    dataGrouping: {
+                        units: groupingUnits
+                    }
+                }
+            },
+
+            series: [{
+                type: 'candlestick',
+                name: thisUrl[3].toUpperCase(),
+                id: thisUrl[3].toLowerCase(),
+                zIndex: 2,
+                data: ohlc
+            }, {
+                type: 'column',
+                name: 'Volume',
+                id: 'volume',
+                data: volume,
+                yAxis: 1
+            }, {
+                type: 'vbp',
+                linkedTo: thisUrl[3].toLowerCase(),
+                params: {
+                    volumeSeriesID: 'volume'
+                },
+                dataLabels: {
+                    enabled: false
+                },
+                zoneLines: {
+                    enabled: false
+                }
+            }, {
+                type: 'sma',
+                linkedTo: thisUrl[3].toLowerCase(),
+                zIndex: 1,
+                marker: {
+                    enabled: false
+                }
+            }]
+        });
+    }
+
+    function handleXhr() {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+            var data = JSON.parse(xhr.responseText);
+            for (var i = 0; i < data.length; i ++) {
+                let x = data[i].date;
+                data[i].date = new Date(x).getTime();
+            }
+            console.log(data);
+            getGraph(data);
+        }
+    }
+
+</script>
+<script>
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/historical/' + thisUrl[3] + '/' + thisUrl[4])
+    xhr.onreadystatechange = handleXhr;
+    xhr.send(null);
+</script>
+
+</html>

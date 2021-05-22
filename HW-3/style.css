@@ -1,0 +1,169 @@
+div.div-inline {
+    display: inline-block;
+}
+
+div.blank {
+    background:white;
+    z-index: -1;
+    height: 50px;
+}
+
+h1.title {
+    color: #103dba;
+    font-size: 35pt;
+}
+
+img.large_img {
+    width: 100%;
+    height: auto;
+}
+
+div.top_cover {
+    z-index: -1;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: white;
+    position: absolute;
+}
+
+div.bottom_cover {
+    z-index: -1;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+    background: white;
+    position: fixed;
+}
+
+div.overlay_1 {
+    margin: 0 auto;
+    width: 1000px;
+    z-index: -1;
+    background: white;
+}
+
+div.overlay_2 {
+    margin: 0 auto;
+    width: 1000px;
+    z-index: -1;
+    background: white;
+}
+
+div.mini_title_cover {
+    background-color: white;
+    height: 15px;
+}
+
+div.background {
+    background: black;
+    z-index: -2;
+    margin: 0 auto;
+    left: 0;
+    right: 0;
+    top: 0;
+    width: 1000px;
+    height: 100px;
+    position: fixed;
+}
+
+div.title_blank {
+    height: 10px;
+}
+
+div.nav {
+    position: relative;
+    top: 20px;
+}
+
+p.nav {
+    font-size: 15pt;
+    font-family: Arial, sans-serif;
+}
+
+div.line {
+    background: black;
+    height: 2px;
+    width: 99%;
+    top: 130px;
+    position: absolute;
+}
+
+div.opacity {
+    fill-opacity: 100;
+    margin: 0 auto;
+    width: 1000px;
+    height: 500px;
+}
+
+div.mini_title {
+    text-align: center;
+    color: #103dba;
+    font-size: 30pt;
+    font-family: Abril, serif;
+}
+
+div.mini_pic {
+    background-color: #b1dfe7;
+    width: 485px;
+    height: 395px;
+}
+
+div.blue_title {
+    top: 20px;
+    left: 50px;
+    position: relative;
+}
+
+p.blue_title {
+    font-size: 45pt;
+    color: #103dba;
+}
+
+div.shop_now {
+    text-align: center;
+    line-height: 60px;
+    top: 0;
+    left: 55px;
+    width: 110px;
+    height: 50px;
+    background: white;
+    color:  black;
+    position: relative;
+    font-family: Arial, sans-serif;
+}
+
+div.horizontal_margin {
+    display: inline-block;
+    width: 15px;
+    height: 350px;
+    /*background: black;*/
+}
+
+div.vertical_margin {
+    width: 100%;
+    height: 100px;
+    /*background: black;*/
+}
+
+div.des_margin {
+    height: 30px;
+    width: 100%;
+    /*background: black;*/
+}
+
+div.mini_des {
+    text-align: center;
+    /*background-color: antiquewhite;*/
+    width: 485px;
+    font-family: Abril, serif;
+    font-size: 20pt;
+    color: #103dba;
+}
+
+img.mini_pic {
+    height: 100%;
+    width: auto;
+}
